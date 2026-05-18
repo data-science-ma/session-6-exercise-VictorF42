@@ -1,0 +1,231 @@
+---
+title: "Exercise: Panel Data and Fixed Effects"
+subtitle: "Session 6: Quantitative Data Analysis: Applied Data Science and Modern Econometrics"
+author: "Your name here"
+date: "28 May 2026"
+format:
+  html:
+    toc: true
+    number-sections: true
+    theme: cosmo
+    self-contained: true
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+::: {.callout-note}
+## Business question
+*Does higher workforce education predict better management quality —
+and does this relationship hold within firms over time?*
+
+Work through the tasks below. Write your R code in the chunks provided
+and your interpretation in the text below each chunk. Write in complete
+sentences — imagine you are explaining results to a colleague who knows
+regression but is new to panel data.
+:::
+
+---
+
+# Setup
+
+Run this chunk first to load packages and data.
+
+```{r}
+#| label: setup
+library(tidyverse)
+library(fixest)
+library(modelsummary)
+library(flextable)
+
+wms <- read_csv("data/wms_da_textbook.csv") |>
+  mutate(log_emp = log(emp_firm))
+```
+
+Before starting the tasks, take one minute to orient yourself.
+
+```{r}
+#| label: data-orientation
+# How many observations, firms, and waves does the panel contain?
+# Hint: use n_distinct() and n()
+```
+
+**Write here:** Briefly describe what the dataset contains
+(units, time dimension, approximate size).
+
+---
+
+# Task 1 — Pooled OLS as a baseline
+
+Estimate a **pooled OLS** model regressing `management` on `degree_nm`
+(share of non-managers with a college degree) and `log_emp`
+(log number of employees). Use `feols()` with no fixed effects.
+Here and in all models below, you should report not only point estimates, but also the 95% confidence interval.
+
+```{r}
+#| label: task1-ols
+# Your code here
+```
+
+**Interpret the coefficient on `degree_nm`:**
+
+*(What does the estimate say? Is it statistically significant?
+What is the limitation of this estimate given that it uses pooled data?)*
+
+---
+
+# Task 2 — Introducing firm fixed effects
+
+Now estimate the same model but add **firm fixed effects** using
+`| firmid` in `feols()`. Cluster standard errors at the firm level
+using `vcov = ~firmid`.
+
+```{r}
+#| label: task2-firm-fe
+# Your code here
+```
+
+**Compare to Task 1:**
+
+*(Did the coefficient on `degree_nm` change? In which direction?
+What does this tell you about the role of unobserved firm-level
+characteristics — i.e., what was the OVB in Task 1?)*
+
+---
+
+# Task 3 — Two-way fixed effects
+
+Extend the firm FE model by also adding **wave fixed effects**
+to control for year-specific shocks. Add `+ wave` to the FE
+specification.
+
+```{r}
+#| label: task3-twoway-fe
+# Your code here
+```
+
+**Interpret the change:**
+
+*(Did the coefficient change substantially when adding wave FE?
+What kinds of confounders does the wave FE absorb?
+Give a concrete example relevant to this dataset.)*
+
+---
+
+# Task 4 — Side-by-side comparison
+
+Use `modelsummary()` to present all three models from Tasks 1–3
+in a single table. Report `nobs`, `r.squared`, and `r2.within`
+as goodness-of-fit statistics. Add a note about standard errors.
+
+```{r}
+#| label: task4-table
+# Your code here
+# Hint:
+# modelsummary(
+#   list("Pooled OLS" = m_ols, "Firm FE" = m_fe, "Two-way FE" = m_2way),
+#   gof_map = c("nobs", "r.squared", "r2.within"),
+#   notes   = "..."
+# )
+```
+
+**Discuss the within-$R^2$:**
+
+*(What does the within-$R^2$ measure in a fixed effects model?
+How does it differ from the overall $R^2$?
+Which one should you report, and why?)*
+
+---
+
+# Task 5 — Reflection
+
+::: {.callout-warning}
+## Think before you code
+This task requires no new code. Read carefully and write 3–5 sentences.
+:::
+
+The FE estimator controls for **time-invariant** unobserved heterogeneity.
+
+Think about the variable `ownership` (ownership type: founder, family,
+dispersed, etc.).
+
+**Answer the following questions in writing:**
+
+1. What would happen if you tried to include `ownership` as a control
+   variable alongside firm fixed effects? Why?
+
+2. Give one example of a **time-varying** confounder that firm fixed
+   effects would *not* control for in this dataset. Why is it still
+   a potential threat to our interpretation?
+
+---
+
+# Optional Extension A — Restricted sample comparison
+
+::: {.callout-tip}
+## Why this matters
+When you moved from Task 1 (pooled OLS) to Task 2 (firm FE), two things changed at once:
+(1) the estimator, and (2) the sample — from 12,793 to ~5,900 observations, because
+singleton firms are dropped. This makes the comparison hard to interpret: is the coefficient
+change due to the FE correction, or because multi-wave firms are simply different from
+singleton firms?
+
+To find out, run pooled OLS on the **FE-eligible sample only** (firms observed more than once)
+and place it between the two previous estimates.
+:::
+
+**Step 1:** Create a dataset restricted to firms that appear in at least two waves.
+
+```{r}
+#| label: optional-fe-sample
+fe_firms <- wms |>
+  count(firmid) |>
+  filter(n > 1) |>
+  pull(firmid)
+
+wms_fe <- wms |> filter(firmid %in% fe_firms)
+```
+
+**Step 2:** Run pooled OLS on this restricted sample.
+
+```{r}
+#| label: optional-ols-fe-sample
+# Your code here
+# m_ols_fe <- feols(management ~ degree_nm + log_emp, data = wms_fe)
+```
+
+**Step 3:** Build a three-column comparison table: OLS (full) | OLS (FE sample) | Firm FE.
+
+```{r}
+#| label: optional-sample-comparison-table
+# modelsummary(
+#   list("OLS (full)" = m_ols, "OLS (FE sample)" = m_ols_fe, "Firm FE" = m_fe),
+#   coef_map  = c("degree_nm" = "Degree (non-managers)", "log_emp" = "Log(employees)"),
+#   statistic = "conf.int", conf_level = 0.95,
+#   gof_map   = c("nobs", "r.squared", "r2.within"),
+#   stars = TRUE
+# )
+```
+
+**Interpret:** Do the two OLS estimates differ? What does this tell you about whether the
+coefficient drop from Task 1 to Task 2 is driven by sample selection or by the FE correction?
+
+*Your answer:*
+
+---
+
+# Optional Extension B — Country fixed effects
+
+::: {.callout-tip}
+## If you finish early
+Try adding country fixed effects (`| cty`) instead of firm fixed
+effects. How does the coefficient on `degree_nm` compare to the
+firm FE result? What different question does country FE answer?
+Write two sentences explaining the difference in interpretation.
+:::
+
+```{r}
+#| label: optional-country-fe
+# Optional: country FE model
+```

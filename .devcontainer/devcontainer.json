@@ -1,0 +1,34 @@
+{
+  "name": "R + Quarto + TinyTeX",
+
+  // Rocker tidyverse image: R 4.4 + tidyverse + devtools + rmarkdown pre-installed.
+  // RStudio Server is included and starts automatically on port 8787.
+  "image": "ghcr.io/rocker-project/tidyverse:4.4",
+
+  "features": {
+    // Install the Quarto CLI on top of the base image
+    "ghcr.io/rocker-project/devcontainer-features/quarto-cli:1": {},
+    // Install TinyTeX for PDF rendering via Quarto
+    "ghcr.io/rocker-project/devcontainer-features/tinytex:1": {}
+  },
+
+  // Forward port 8787 and open RStudio Server automatically in the browser
+  // as soon as the Codespace is ready. No login required.
+  "forwardPorts": [8787],
+  "portsAttributes": {
+    "8787": {
+      "label": "RStudio Server",
+      "onAutoForward": "openBrowser"
+    }
+  },
+
+  // Disable RStudio Server authentication — safe inside a Codespace,
+  // which is already private to the authenticated GitHub user.
+  "remoteEnv": {
+    "DISABLE_AUTH": "true"
+  },
+
+  // Install the packages not already present in the base image.
+  // Runs once when the Codespace is first created (not on every restart).
+  "postCreateCommand": "Rscript -e \"install.packages(c('fixest', 'modelsummary', 'flextable'), repos='https://cloud.r-project.org', Ncpus=2)\""
+}
